@@ -1,0 +1,19 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+.venv*/
+__pycache__/
+*.pyc
+.pytest_cache/
+.gltest_cache/
+
+# Build / tooling
+node_modules/
+dist/
+artifacts/
+*.log
+.kiro/
+uv-install.sh
