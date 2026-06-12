@@ -50,7 +50,11 @@ import { testnetBradbury as _chain } from "genlayer-js/chains";
 export async function writeWith(provider: any, account: string, functionName: string, args: any[]): Promise<string> {
   const client = _cc({ chain: _chain, account: account as any, provider } as any);
   const hash = await client.writeContract({ address: CONTRACT, functionName, args });
-  await client.waitForTransactionReceipt({ hash, status: "ACCEPTED" });
+  // Bradbury consensus can take 1-3 min. Wait generously, but never throw on a
+  // wait-timeout — the tx is still confirming and the docket will pick it up.
+  try {
+    await client.waitForTransactionReceipt({ hash, status: "ACCEPTED", interval: 5000, retries: 60 });
+  } catch { /* still confirming on-chain */ }
   return hash as string;
 }
 

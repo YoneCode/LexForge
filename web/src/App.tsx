@@ -150,17 +150,20 @@ export default function App() {
   }
 
   async function tx(fn: string, args: any[]) {
-    setBusy(true); print(`submitting ${fn}… (web render + LLM + validator consensus may take a minute)`, "dim");
+    if (!wallet) { toast("Connect your wallet first."); try { await login(); } catch {} return; }
+    setBusy(true);
+    print(`submitting ${fn}… validator consensus can take 1–3 min`, "dim");
     try {
-      if (!wallet) { await login(); throw new Error("connect a wallet, then run the command again"); }
       await wallet.switchChain(CHAIN_ID);
       const provider = await wallet.getEthereumProvider();
       const h = await writeWith(provider, wallet.address, fn, args);
       const cid = typeof args[0] === "number" ? args[0] : await caseCount();
       recordTx(cid, h);
-      print(`accepted · ${h.slice(0, 14)}…`, "ok"); toast(`${fn} accepted`); await refresh();
+      print(`done · ${h.slice(0, 14)}… (if the row lags, hit Refresh)`, "ok"); toast(`${fn} submitted`);
+      await refresh();
+      setTimeout(refresh, 60000); setTimeout(refresh, 150000);
     }
-    catch (e: any) { print(e?.shortMessage || e?.message || String(e), "err"); }
+    catch (e: any) { print(e?.shortMessage || e?.message || String(e), "err"); toast("tx failed — see console"); }
     finally { setBusy(false); }
   }
 
