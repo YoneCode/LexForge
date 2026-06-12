@@ -73,6 +73,7 @@ export default function App() {
     { k: "norm", t: "type /help for operations, or /docket to read the chain." },
   ]);
   const [input, setInput] = useState("");
+  const [form, setForm] = useState({ covenant_ref: "", clause_text: "", claim: "", evidence_url: "" });
   const [palette, setPalette] = useState(false);
   const [clock, setClock] = useState("00:00:00");
   const screenRef = useRef<HTMLDivElement>(null);
@@ -142,6 +143,14 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+  const forge = async () => {
+    const f = form;
+    if (!f.covenant_ref || !f.clause_text || !f.claim || !f.evidence_url) return toast("Fill all four fields to open a dispute.");
+    await tx("open_case", [f.covenant_ref, f.clause_text, f.claim, f.evidence_url]);
+    setForm({ covenant_ref: "", clause_text: "", claim: "", evidence_url: "" });
+    document.getElementById("docket")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   const resolved = cases.filter((c) => c.status === "RESOLVED" || c.status === "FINAL").length;
   const finalized = cases.filter((c) => c.status === "FINAL").length;
   const passed = cases.filter((c) => c.verdict === "PASS").length;
@@ -162,7 +171,7 @@ export default function App() {
             <span className={`${L} text-cyberwhite group-hover:text-cyberemerald transition-colors`}>LexForge // PCSB</span>
           </a>
           <nav className="hidden md:flex items-center space-x-10">
-            {[["#modules", "Modules"], ["#docket", "Docket"], ["#console", "Console"], [EXPLORER, "Explorer"]].map(([h, t]) => (
+            {[["#modules", "Modules"], ["#docket", "Docket"], ["#console", "Resolve"], [EXPLORER, "Explorer"]].map(([h, t]) => (
               <a key={t} href={h} target={h.startsWith("http") ? "_blank" : undefined} className={`${L} text-cyberwhite/60 hover:text-cyberwhite emerald-underline py-1`}>{t}</a>
             ))}
           </nav>
@@ -203,7 +212,7 @@ export default function App() {
               Bond-backed promises written in plain language. GenLayer’s validators read the evidence, agree on the verdict, and settle — no trusted oracle, no off-chain judge, no rigid Solidity.
             </p>
             <div className="flex flex-wrap items-center gap-5 pt-4">
-              <a href="#console" className="px-8 py-4 bg-cyberwhite text-cyberblack font-mono text-xs uppercase tracking-[0.2em] rounded-full hover:bg-cyberemerald transition-all duration-500 hover:-translate-y-0.5 shadow-[0_4px_24px_rgba(16,185,129,0.2)] hover:shadow-[0_4px_30px_rgba(16,185,129,0.5)] transition-premium">Open the console</a>
+              <a href="#console" className="px-8 py-4 bg-cyberwhite text-cyberblack font-mono text-xs uppercase tracking-[0.2em] rounded-full hover:bg-cyberemerald transition-all duration-500 hover:-translate-y-0.5 shadow-[0_4px_24px_rgba(16,185,129,0.2)] hover:shadow-[0_4px_30px_rgba(16,185,129,0.5)] transition-premium">File a dispute</a>
               <a href="#docket" className="px-8 py-4 border border-white/20 hover:border-white text-cyberwhite font-mono text-xs uppercase tracking-[0.2em] rounded-full hover:bg-white/5 transition-all duration-500 hover:-translate-y-0.5 transition-premium">Read the docket</a>
             </div>
             <div className="grid grid-cols-3 gap-6 pt-10 border-t border-white/10 max-w-lg font-mono">
@@ -303,9 +312,9 @@ export default function App() {
           </div>
           <div className="lg:col-span-8 glass-panel p-8 rounded-3xl reveal-element overflow-x-auto">
             <table className="w-full text-left">
-              <thead><tr className="border-b border-white/10">{["Case", "Clause", "Verdict", "Payout"].map((h) => <th key={h} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 pb-4 font-normal pr-4">{h}</th>)}</tr></thead>
+              <thead><tr className="border-b border-white/10">{["Case", "Clause", "Verdict", "Payout", "Action"].map((h) => <th key={h} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 pb-4 font-normal pr-4">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-white/5 font-sans">
-                {cases.length === 0 && <tr><td colSpan={4} className="py-8 text-white/40 font-mono text-xs">No cases yet — open one in the console below.</td></tr>}
+                {cases.length === 0 && <tr><td colSpan={5} className="py-8 text-white/40 font-mono text-xs">No cases yet — file one with the form below.</td></tr>}
                 {cases.map((c) => (
                   <tr key={c.case_id}>
                     <td className="py-5 pr-4 font-mono text-white/40">#{c.case_id}<div className="text-[9px] text-white/30">{c.covenant_ref}</div></td>
@@ -314,7 +323,16 @@ export default function App() {
                       <span className={`font-mono text-[11px] uppercase tracking-wider ${c.verdict === "PASS" ? "text-cyberemerald" : c.verdict === "FAIL" ? "text-red-400" : "text-white/40"}`}>{c.verdict}</span>
                       <div className="text-[9px] font-mono text-white/30">{c.status}</div>
                     </td>
-                    <td className="py-5 font-mono text-cyberemerald">{pct(c.payout_bps)}%</td>
+                    <td className="py-5 pr-4 font-mono text-cyberemerald">{pct(c.payout_bps)}%</td>
+                    <td className="py-5">
+                      {(c.status === "OPEN" || c.status === "EVIDENCE") && (
+                        <button onClick={() => tx("crank", [c.case_id])} disabled={busy} title="Validators fetch the evidence, run an LLM, and agree on a verdict" className="px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-wider bg-cyberemerald/10 text-cyberemerald border border-cyberemerald/30 hover:bg-cyberemerald/25 transition-all disabled:opacity-40">⚖ Crank</button>
+                      )}
+                      {c.status === "RESOLVED" && (
+                        <button onClick={() => tx("finalize", [c.case_id])} disabled={busy} title="Owner-gated: emit the settlement payload" className="px-3 py-2 rounded-lg font-mono text-[10px] uppercase tracking-wider border border-white/15 text-white/60 hover:border-cyberemerald/50 hover:text-cyberemerald transition-all disabled:opacity-40">Finalize</button>
+                      )}
+                      {c.status === "FINAL" && <span className="font-mono text-[10px] text-cyberemerald/70 uppercase tracking-wider">✓ settled</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -323,30 +341,79 @@ export default function App() {
         </div>
       </section>
 
-      {/* CONSOLE */}
+      {/* FILE & RESOLVE */}
       <section id="console" className="relative py-32 px-6 border-t border-white/5 bg-cyberblack/60 z-10">
         <div className="max-w-7xl mx-auto">
-          <div className="max-w-xl mx-auto text-center mb-16 reveal-element">
+          <div className="max-w-2xl mx-auto text-center mb-14 reveal-element">
             <div className={`${L} text-cyberemerald mb-3`}>Interactive · real on-chain</div>
-            <h2 className="font-serif text-4xl md:text-5xl font-light tracking-tighter text-cyberwhite">Drive a <span className="italic font-extralight text-cyberemerald">dispute</span></h2>
-            <p className="font-sans text-white/50 text-sm leading-relaxed font-light mt-4">Forge a covenant, crank the adjudication (real web render + LLM + validator consensus), and emit the settlement — live on Bradbury.</p>
+            <h2 className="font-serif text-4xl md:text-5xl font-light tracking-tighter text-cyberwhite">File &amp; resolve a <span className="italic font-extralight text-cyberemerald">dispute</span></h2>
+            <p className="font-sans text-white/50 text-sm leading-relaxed font-light mt-4">Three steps, all on Bradbury. No backend — your wallet signs each write.</p>
           </div>
-          <div className="max-w-4xl mx-auto glass-panel rounded-3xl overflow-hidden shadow-2xl reveal-element">
-            <div className="bg-black/50 px-6 py-4 flex items-center justify-between border-b border-white/10">
-              <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded-full bg-red-500/50" /><span className="w-3 h-3 rounded-full bg-yellow-500/50" /><span className="w-3 h-3 rounded-full bg-cyberemerald/50" /><span className="font-mono text-[10px] text-white/40 pl-4 tracking-wider">{acct ? short(acct) : "guest"}@lexforge ~ bradbury</span></div>
-              <span className="font-mono text-[9px] px-2.5 py-1 bg-white/5 text-white/50 rounded-md border border-white/10 uppercase tracking-widest">SH-PROMPT</span>
-            </div>
-            <div ref={screenRef} className="p-8 bg-cyberblack/90 font-mono text-xs space-y-2 min-h-[360px] max-h-[520px] overflow-y-auto">
-              {lines.map((l, i) => (
-                <div key={i} className={l.k === "ok" ? "text-cyberemerald" : l.k === "err" ? "text-red-400" : l.k === "dim" ? "text-white/40" : l.k === "cmd" ? "text-white/50 mt-3" : "text-white/75"}>
-                  {l.k === "cmd" ? <><span className="text-cyberemerald font-bold">❯</span> {l.t}</> : <span style={{ whiteSpace: "pre-wrap" }}>{l.t}</span>}
-                </div>
+
+          {/* 3-step lifecycle */}
+          <div className="grid md:grid-cols-3 gap-4 mb-14 reveal-element">
+            {[
+              ["01", "Open", "State a plain-language clause, the claim, and a public evidence URL. Recorded on-chain as OPEN."],
+              ["02", "Crank", "Validators independently render the evidence, run an LLM, and reach consensus on a verdict — PASS, FAIL or UNDETERMINED."],
+              ["03", "Finalize", "On PASS the claimant is owed 100% of collateral, on FAIL 0%. A replay-protected settlement payload is emitted."],
+            ].map(([n, t, d]) => (
+              <div key={n} className="glass-panel rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-3"><span className="font-mono text-[10px] text-cyberemerald border border-cyberemerald/30 rounded px-2 py-0.5">{n}</span><span className="font-serif text-xl text-cyberwhite">{t}</span></div>
+                <p className="font-sans text-white/45 text-sm leading-relaxed font-light">{d}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+            {/* guided form — primary path */}
+            <div className="glass-panel rounded-3xl p-8 reveal-element">
+              <div className={`${L} text-cyberemerald mb-6`}>Step 1 · Open a dispute</div>
+              {[
+                ["covenant_ref", "Covenant reference", "vault-001"],
+                ["clause_text", "Clause (plain language)", "the deliverable provides a usable integration"],
+                ["claim", "Claim to test", "the integration is live and usable"],
+                ["evidence_url", "Evidence URL", "https://example.com"],
+              ].map(([k, label, ph]) => (
+                <label key={k} className="block mb-4">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-white/40">{label}</span>
+                  <input
+                    value={(form as any)[k]}
+                    onChange={(e) => setForm({ ...form, [k]: e.target.value })}
+                    placeholder={ph}
+                    className="mt-2 w-full bg-cyberblack/60 border border-white/10 focus:border-cyberemerald/60 rounded-xl px-4 py-3 text-sm text-cyberwhite font-sans outline-none transition-colors placeholder-white/25"
+                  />
+                </label>
               ))}
+              <button
+                onClick={authenticated ? forge : onConnect}
+                disabled={busy}
+                className="w-full mt-2 px-6 py-4 rounded-full font-mono text-[11px] uppercase tracking-[0.2em] bg-cyberwhite text-cyberblack hover:bg-cyberemerald transition-all disabled:opacity-40 shadow-[0_4px_24px_rgba(16,185,129,0.18)]"
+              >
+                {busy ? "working…" : authenticated ? "Open dispute" : "Connect wallet to open"}
+              </button>
+              <p className="font-mono text-[10px] text-white/35 mt-4 leading-relaxed">
+                Once OPEN, hit <span className="text-cyberemerald">⚖ Crank</span> on the case in the docket above to run consensus. Reading the docket needs no wallet.
+              </p>
             </div>
-            <div className="bg-black/60 p-4 border-t border-white/10 flex items-center space-x-3">
-              <span className="text-cyberemerald font-mono text-sm pl-2">❯</span>
-              <input value={input} disabled={busy} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run(input)} placeholder={busy ? "working…" : "/forge vault-1 | the deliverable works | it works | https://example.com"} className="w-full bg-transparent outline-none border-none text-cyberwhite font-mono text-xs placeholder-white/30" />
-              <button onClick={() => run(input)} disabled={busy} className="px-4 py-2 bg-cyberemerald/10 hover:bg-cyberemerald/25 text-cyberemerald border border-cyberemerald/20 hover:border-cyberemerald/50 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all disabled:opacity-40">Run</button>
+
+            {/* advanced terminal */}
+            <div className="glass-panel rounded-3xl overflow-hidden reveal-element">
+              <div className="bg-black/50 px-6 py-4 flex items-center justify-between border-b border-white/10">
+                <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded-full bg-red-500/50" /><span className="w-3 h-3 rounded-full bg-yellow-500/50" /><span className="w-3 h-3 rounded-full bg-cyberemerald/50" /><span className="font-mono text-[10px] text-white/40 pl-4 tracking-wider">{acct ? short(acct) : "guest"}@lexforge ~ bradbury</span></div>
+                <span className="font-mono text-[9px] px-2.5 py-1 bg-white/5 text-white/50 rounded-md border border-white/10 uppercase tracking-widest">advanced</span>
+              </div>
+              <div ref={screenRef} className="p-6 bg-cyberblack/90 font-mono text-xs space-y-2 min-h-[300px] max-h-[420px] overflow-y-auto">
+                {lines.map((l, i) => (
+                  <div key={i} className={l.k === "ok" ? "text-cyberemerald" : l.k === "err" ? "text-red-400" : l.k === "dim" ? "text-white/40" : l.k === "cmd" ? "text-white/50 mt-3" : "text-white/75"}>
+                    {l.k === "cmd" ? <><span className="text-cyberemerald font-bold">❯</span> {l.t}</> : <span style={{ whiteSpace: "pre-wrap" }}>{l.t}</span>}
+                  </div>
+                ))}
+              </div>
+              <div className="bg-black/60 p-4 border-t border-white/10 flex items-center space-x-3">
+                <span className="text-cyberemerald font-mono text-sm pl-2">❯</span>
+                <input value={input} disabled={busy} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run(input)} placeholder={busy ? "working…" : "/help · /docket · /crank <id>"} className="w-full bg-transparent outline-none border-none text-cyberwhite font-mono text-xs placeholder-white/30" />
+                <button onClick={() => run(input)} disabled={busy} className="px-4 py-2 bg-cyberemerald/10 hover:bg-cyberemerald/25 text-cyberemerald border border-cyberemerald/20 hover:border-cyberemerald/50 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all disabled:opacity-40">Run</button>
+              </div>
             </div>
           </div>
         </div>
