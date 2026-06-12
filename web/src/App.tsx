@@ -11,6 +11,27 @@ const spot = (e: React.MouseEvent<HTMLElement>) => {
   e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - r.top}px`);
 };
 
+function Mark({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      <g transform="translate(0 3)">
+        <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="16" y1="9" x2="16" y2="14.6" />
+          <line x1="7" y1="19" x2="12.6" y2="19" />
+          <line x1="19.4" y1="19" x2="25" y2="19" />
+          <circle cx="16" cy="19" r="3.4" />
+        </g>
+        <g fill="currentColor">
+          <circle cx="16" cy="7" r="2.4" />
+          <circle cx="7" cy="19" r="2.2" />
+          <circle cx="25" cy="19" r="2.2" />
+          <circle cx="16" cy="19" r="0.9" />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
 function useReveal() {
   useEffect(() => {
     const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && (e.target.classList.add("revealed"), io.unobserve(e.target))), { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
@@ -167,7 +188,7 @@ export default function App() {
       <header className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 border-b transition-premium ${scrolled ? "bg-cyberblack/85 backdrop-blur-md border-white/10" : "border-transparent"}`}>
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <a href="#hero" className="flex items-center space-x-3 group">
-            <div className="w-8 h-8 rounded-lg bg-cyberwhite text-cyberblack grid place-items-center font-bold transition-transform duration-700 transition-premium group-hover:rotate-[360deg]">⌘</div>
+            <div className="w-8 h-8 rounded-lg bg-cyberwhite text-cyberemerald grid place-items-center transition-transform duration-700 transition-premium group-hover:rotate-[360deg]"><Mark className="w-5 h-5" /></div>
             <span className={`${L} text-cyberwhite group-hover:text-cyberemerald transition-colors`}>LexForge // PCSB</span>
           </a>
           <nav className="hidden md:flex items-center space-x-10">
