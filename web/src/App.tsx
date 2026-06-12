@@ -260,7 +260,7 @@ export default function App() {
                 {cases.map((c) => {
                   const tx = txOf(c.case_id);
                   return (
-                    <a key={c.case_id} href={tx ? txUrl(tx) : EXPLORER} target="_blank" className="flex items-center justify-between gap-3 py-2 px-1 border-t border-white/5 group">
+                    <a key={c.case_id} href={tx ? txUrl(tx) : `${EXPLORER}/address/${CONTRACT}`} target="_blank" className="flex items-center justify-between gap-3 py-2 px-1 border-t border-white/5 group">
                       <div className="min-w-0">
                         <div className="font-mono text-[8px] text-white/40">#{c.case_id} · {c.covenant_ref}</div>
                         <div className="font-serif text-xs text-cyberwhite truncate">{c.clause_text}</div>
